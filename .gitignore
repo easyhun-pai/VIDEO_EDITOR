@@ -1,0 +1,40 @@
+# ---- 데이터 / 결과물 (용량 큼, 버전관리 제외) ----
+/data/*
+!/data/.gitkeep
+/output/*
+!/output/.gitkeep
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ---- 가상환경 ----
+.venv/
+venv/
+env/
+ENV/
+
+# ---- 캐시 / 도구 ----
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# ---- IDE / OS ----
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---- 임시 파일 ----
+*.tmp
+*.log
+concat_*.txt

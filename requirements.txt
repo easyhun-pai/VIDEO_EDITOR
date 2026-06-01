@@ -1,0 +1,4 @@
+# video_editor 의존성
+opencv-python>=4.8        # 프레임 추출, 크롭 GUI(ROI 선택), 메타데이터 probe
+numpy>=1.24               # opencv 의존
+imageio-ffmpeg>=0.4.9     # ffmpeg 바이너리 번들 (시스템에 ffmpeg가 없을 때 사용)
