@@ -138,6 +138,16 @@ def format_time(seconds: float) -> str:
     return f"{h:02d}:{m:02d}:{s:06.3f}"
 
 
+def human_size(num_bytes: float) -> str:
+    """바이트 → 사람이 읽기 좋은 용량 문자열 (예: 1.8 GB)."""
+    size = float(num_bytes)
+    for unit in ("B", "KB", "MB", "GB"):
+        if size < 1024 or unit == "GB":
+            return f"{size:.1f} {unit}" if unit != "B" else f"{int(size)} B"
+        size /= 1024
+    return f"{size:.1f} TB"
+
+
 # --------------------------------------------------------------------------- #
 # 영상 메타데이터 (OpenCV 사용 — ffprobe 불필요)
 # --------------------------------------------------------------------------- #

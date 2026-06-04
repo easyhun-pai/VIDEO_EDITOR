@@ -18,6 +18,7 @@
 |------|------|-----------|
 | `info`    | 해상도·FPS·길이·코덱 등 메타데이터 확인 | — |
 | `extract` | 원하는 **시간 구간**만 잘라내기 (기본 무손실·고속) | `-s` `-e` `-d` `--accurate` |
+| `encode`  | **CRF 재인코딩으로 용량 축소** (웹 친화적: faststart) | `--crf` `--codec` `--preset` |
 | `merge`   | 여러 영상을 **하나로 병합** | `--reencode` |
 | `timeline`| **타임스탬프 목록의 여러 구간**을 잘라 하나로 병합 (슈퍼컷) | `-f` `-r` `--copy` |
 | `crop`    | **GUI로 영역을 드래그**해 화면 크롭 | `--at` `--region` `-s` `-e` |
@@ -72,6 +73,24 @@ python edit.py extract BCT_hook.mp4 -s 90 -d 30
 python edit.py extract BCT_hook.mp4 -s 1:30 -e 2:45 --accurate -o output/clip.mp4
 ```
 > 시간 형식: `90`, `90.5`, `1:30`, `01:02:03`, `1:02:03.250` 모두 가능.
+
+### 1-1. 용량 축소 인코딩 (encode)
+무압축/고비트레이트 원본(예: 산업용 카메라 40초 10GB)을 CRF 기반으로 압축합니다.
+```bash
+# CRF 12 (거의 무손실), H.264, 웹 스트리밍용 faststart 자동 적용
+python edit.py encode raw_10GB.mp4 --crf 12
+
+# 더 작게: H.265 + 느린 프리셋 (호환성↓, 용량↓)
+python edit.py encode raw_10GB.mp4 --crf 18 --codec h265 --preset slow
+
+# 출력 fps 변경까지
+python edit.py encode raw_10GB.mp4 --crf 12 --fps 30 -o output/clip_web.mp4
+```
+→ `output/<이름>_h264crf12.mp4` 로 저장되며, 처리 후 **용량 축소 비율**을 출력합니다.
+
+> **CRF**: 낮을수록 고화질·대용량 (12 ≈ 거의 무손실, 18 ≈ 고화질, 23 = 기본 권장, 28 = 저용량).
+> **자동 적용**: `-movflags +faststart`(다운로드 중 재생 시작), `-pix_fmt yuv420p`(브라우저 호환).
+> 비트뎁스(mono16 등) 보존이 필요하면 `--pix-fmt` 로 바꾸세요(단, 웹 재생 호환성은 떨어짐).
 
 ### 2. 영상 병합
 ```bash
@@ -167,7 +186,7 @@ VIDEO_EDITOR/
 ├── video_editor/
 │   ├── __init__.py
 │   ├── core.py            # ffmpeg 탐지·시간 파싱·probe·경로 헬퍼
-│   ├── operations.py      # extract / merge / timeline / images / frames / split
+│   ├── operations.py      # extract / encode / merge / timeline / images / frames / split
 │   └── cropper.py         # OpenCV 크롭 GUI + ffmpeg 크롭
 ├── requirements.txt
 ├── .gitignore

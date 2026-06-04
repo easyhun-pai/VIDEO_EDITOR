@@ -4,6 +4,7 @@
 사용 예시
     python edit.py info    data/BCT_hook.mp4
     python edit.py extract BCT_hook.mp4 -s 00:01:30 -e 00:02:45
+    python edit.py encode  raw_10GB.mp4 --crf 12
     python edit.py merge   a.mp4 b.mp4 c.mp4 -o output/all.mp4
     python edit.py timeline BCT_hook.mp4 -f timestamp.txt
     python edit.py crop    BCT_hook.mp4
@@ -45,6 +46,20 @@ def cmd_extract(a: argparse.Namespace) -> None:
         out=a.output,
         accurate=a.accurate,
         keep_audio=a.keep_audio,
+        overwrite=a.overwrite,
+    )
+
+
+def cmd_encode(a: argparse.Namespace) -> None:
+    operations.encode(
+        a.input,
+        crf=a.crf,
+        codec=a.codec,
+        preset=a.preset,
+        pix_fmt=a.pix_fmt,
+        fps=a.fps,
+        keep_audio=a.keep_audio,
+        out=a.output,
         overwrite=a.overwrite,
     )
 
@@ -143,7 +158,7 @@ def cmd_split(a: argparse.Namespace) -> None:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="edit.py",
-        description="현장 영상 데이터셋 전처리 툴킷 (extract / merge / timeline / crop / images / frames / split / info)",
+        description="현장 영상 데이터셋 전처리 툴킷 (info / extract / encode / merge / timeline / crop / images / frames / split)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -168,6 +183,28 @@ def build_parser() -> argparse.ArgumentParser:
                    help="오디오 유지 (기본: 오디오 제거)")
     s.add_argument("-y", "--overwrite", action="store_true", help="기존 출력 덮어쓰기")
     s.set_defaults(func=cmd_extract)
+
+    # encode ---------------------------------------------------------------- #
+    s = sub.add_parser(
+        "encode",
+        help="CRF 기반 재인코딩으로 용량 축소 (웹 친화적: faststart)",
+        description="무압축/고비트레이트 원본을 H.264/H.265로 압축합니다. CRF가 낮을수록 고화질·대용량.",
+    )
+    s.add_argument("input", help="입력 영상")
+    s.add_argument("--crf", type=int, default=12,
+                   help="화질/용량 트레이드오프 (낮을수록 고화질, 기본 12 ≈ 거의 무손실)")
+    s.add_argument("--codec", choices=["h264", "h265"], default="h264",
+                   help="코덱 (기본 h264=호환성 최고, h265=용량 더 작음/호환성 낮음)")
+    s.add_argument("--preset", default="medium",
+                   help="인코딩 프리셋 (느릴수록 용량↓: ultrafast..medium..slow..veryslow, 기본 medium)")
+    s.add_argument("--pix-fmt", dest="pix_fmt", default="yuv420p",
+                   help="픽셀 포맷 (기본 yuv420p=브라우저 호환). 비트뎁스 보존 필요시 변경")
+    s.add_argument("--fps", type=float, default=None, help="출력 fps 강제 변경 (선택)")
+    s.add_argument("-o", "--output", help="출력 경로 (기본: output/<이름>_<코덱>crf<값>.mp4)", default=None)
+    s.add_argument("--keep-audio", dest="keep_audio", action="store_true",
+                   help="오디오 유지 (기본: 오디오 제거)")
+    s.add_argument("-y", "--overwrite", action="store_true", help="기존 출력 덮어쓰기")
+    s.set_defaults(func=cmd_encode)
 
     # merge ----------------------------------------------------------------- #
     s = sub.add_parser("merge", help="여러 영상을 하나로 병합")

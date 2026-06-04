@@ -1,4 +1,4 @@
-"""핵심 영상 연산 — extract / merge / split / frames / timeline."""
+"""핵심 영상 연산 — extract / encode / merge / split / frames / timeline."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from . import core
 from .core import (
     format_time,
     has_audio,
+    human_size,
     info,
     ok,
     parse_time,
@@ -21,6 +22,9 @@ from .core import (
     suffix_name,
     warn,
 )
+
+# 코덱 별칭 → ffmpeg 인코더
+_CODECS = {"h264": "libx264", "h265": "libx265", "hevc": "libx265"}
 
 
 # --------------------------------------------------------------------------- #
@@ -86,6 +90,68 @@ def extract(
     info(f"구간 : {format_time(t_start)} 부터 {span} 길이  ({'정확/재인코딩' if accurate else '빠름/무손실복사'})")
     run_ffmpeg(args)
     ok(f"추출 완료 → {dest}")
+    return dest
+
+
+# --------------------------------------------------------------------------- #
+# 1-1) encode — 용량 축소를 위한 재인코딩 (CRF 기반, 웹 친화적)
+# --------------------------------------------------------------------------- #
+def encode(
+    src: str,
+    *,
+    crf: int = 12,
+    codec: str = "h264",
+    preset: str = "medium",
+    pix_fmt: str = "yuv420p",
+    fps: float | None = None,
+    keep_audio: bool = False,
+    out: str | None = None,
+    overwrite: bool = False,
+) -> Path:
+    """원본을 CRF 기반으로 재인코딩해 용량을 줄인다.
+
+    산업용 카메라의 무압축/고비트레이트 원본(예: 40초 10GB)을 H.264/H.265 로
+    압축한다. CRF 가 낮을수록 고화질·대용량(12 ≈ 거의 무손실), 높을수록 저용량.
+
+    웹 스트리밍을 위해 기본적으로:
+        * -movflags +faststart  (moov atom을 앞으로 → 다운로드 중 재생 시작 가능)
+        * -pix_fmt yuv420p       (모든 브라우저 호환)
+    를 적용한다.
+    """
+    in_path = resolve_input(src)
+    codec = codec.lower()
+    if codec not in _CODECS:
+        core.fail(f"지원하지 않는 코덱: {codec} (h264 또는 h265)")
+    encoder = _CODECS[codec]
+
+    meta = probe(in_path)
+    dest = resolve_output(out, suffix_name(in_path, f"_{codec}crf{crf}", ".mp4"), overwrite=overwrite)
+    before = in_path.stat().st_size
+
+    args = [
+        "-i", str(in_path),
+        "-c:v", encoder, "-crf", str(crf), "-preset", preset,
+        "-pix_fmt", pix_fmt,
+        "-movflags", "+faststart",
+    ]
+    if fps is not None:
+        args += ["-r", f"{fps}"]
+    if codec in ("h265", "hevc"):
+        args += ["-tag:v", "hvc1"]  # Safari/QuickTime 호환 태그
+    args += ["-c:a", "aac"] if keep_audio else ["-an"]
+    args += ["-y", str(dest)]
+
+    info(f"입력   : {in_path.name}  ({meta.width}x{meta.height}, {meta.fps:.2f}fps, {human_size(before)})")
+    info(f"인코딩 : {encoder}  CRF={crf}  preset={preset}  pix_fmt={pix_fmt}"
+         + (f"  fps={fps}" if fps else ""))
+    info("웹옵션 : +faststart (점진적 재생용)" + ("" if keep_audio else "  / 오디오 제거"))
+    run_ffmpeg(args)
+
+    after = dest.stat().st_size
+    ratio = (after / before * 100) if before else 0
+    ok(f"인코딩 완료 → {dest}")
+    info(f"용량   : {human_size(before)} → {human_size(after)}  "
+         f"({ratio:.1f}%, {before / after:.1f}배 축소)" if after else "")
     return dest
 
 
